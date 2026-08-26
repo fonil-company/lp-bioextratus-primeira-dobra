@@ -23,9 +23,17 @@ const leadSchema = z.object({
 
 export const onlyDigits = (value: string) => value.replace(/\D/g, "");
 
-const LEGACY_CRM_WEBHOOK_URL =
+const BIONATURE_WEBHOOK_URL = process.env.BIONATURE_WEBHOOK_URL;
+const BIO_NATURE_WEBHOOK_URL =
   "https://newtracking-sales-sys.vercel.app/api/webhooks/leads/cmqwra13j0003t4mc92b5eobn";
-const CRM_WEBHOOK_URL = process.env.CRM_WEBHOOK_URL;
+
+async function postLead(url: string, payload: Record<string, unknown>) {
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
 
 const submitLeadToCrm = createServerFn({ method: "POST" })
   .validator((input: unknown) => leadSchema.parse(input))
@@ -36,42 +44,37 @@ const submitLeadToCrm = createServerFn({ method: "POST" })
       document: onlyDigits(data.cnpj),
       city: data.cidade,
       state: data.estado,
+      investment_range: data.faixaInvestimento,
+      consent: data.consentimento,
       pipeline_stage: "Qualificado",
     };
 
-    const crmRequest = CRM_WEBHOOK_URL
-      ? fetch(CRM_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
-      : Promise.reject(new Error("CRM_WEBHOOK_URL is not configured."));
+    const bionatureRequest = BIONATURE_WEBHOOK_URL
+      ? postLead(BIONATURE_WEBHOOK_URL, payload)
+      : Promise.reject(new Error("BIONATURE_WEBHOOK_URL is not configured."));
 
-    const [crmResult, legacyCrmResult] = await Promise.allSettled([
-      crmRequest,
-      fetch(LEGACY_CRM_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }),
+    const [bionatureResult, bioNatureResult] = await Promise.allSettled([
+      bionatureRequest,
+      postLead(BIO_NATURE_WEBHOOK_URL, payload),
     ]);
 
-    const crmResponse = crmResult.status === "fulfilled" ? crmResult.value : undefined;
-    const legacyCrmResponse =
-      legacyCrmResult.status === "fulfilled" ? legacyCrmResult.value : undefined;
+    const bionatureResponse =
+      bionatureResult.status === "fulfilled" ? bionatureResult.value : undefined;
+    const bioNatureResponse =
+      bioNatureResult.status === "fulfilled" ? bioNatureResult.value : undefined;
 
-    if (!crmResponse?.ok) {
+    if (!bionatureResponse?.ok) {
       console.error(
-        `New CRM rejected lead submission${crmResponse ? ` with status ${crmResponse.status}` : ""}.`,
+        `Bionature webhook rejected lead submission${bionatureResponse ? ` with status ${bionatureResponse.status}` : ""}.`,
       );
     }
-    if (!legacyCrmResponse?.ok) {
+    if (!bioNatureResponse?.ok) {
       console.error(
-        `Legacy CRM rejected lead submission${legacyCrmResponse ? ` with status ${legacyCrmResponse.status}` : ""}.`,
+        `Bio Nature webhook rejected lead submission${bioNatureResponse ? ` with status ${bioNatureResponse.status}` : ""}.`,
       );
     }
 
-    return { ok: crmResponse?.ok ?? false };
+    return { ok: Boolean(bionatureResponse?.ok || bioNatureResponse?.ok) };
   });
 
 export async function sendLead(lead: Lead): Promise<{ ok: boolean }> {
