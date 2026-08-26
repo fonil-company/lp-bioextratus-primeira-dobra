@@ -5,20 +5,12 @@ export type Lead = {
   nome: string;
   whatsapp: string;
   cnpj: string;
-  estado: string;
-  cidade: string;
-  faixaInvestimento: string;
-  consentimento: boolean;
 };
 
 const leadSchema = z.object({
   nome: z.string().min(3),
   whatsapp: z.string().min(10),
   cnpj: z.string().min(14),
-  estado: z.enum(["PI", "MA"]),
-  cidade: z.string().min(1),
-  faixaInvestimento: z.string().min(1),
-  consentimento: z.boolean().refine((value) => value),
 });
 
 export const onlyDigits = (value: string) => value.replace(/\D/g, "");
@@ -42,10 +34,6 @@ const submitLeadToCrm = createServerFn({ method: "POST" })
       phone: onlyDigits(data.whatsapp),
       name: data.nome.trim(),
       document: onlyDigits(data.cnpj),
-      city: data.cidade,
-      state: data.estado,
-      investment_range: data.faixaInvestimento,
-      consent: data.consentimento,
       pipeline_stage: "Qualificado",
     };
 
