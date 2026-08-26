@@ -2,7 +2,10 @@
   "name": "bio-nature-primeira-dobra",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22 <25", "npm": ">=10" },
+  "engines": {
+    "node": ">=22 <23",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -23,6 +26,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "5.0.4",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
