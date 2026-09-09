@@ -19,7 +19,8 @@ const BIONATURE_WEBHOOK_URL =
   process.env.BIONATURE_WEBHOOK_URL ||
   "https://mpajmwwwexxnrsyocppb.supabase.co/functions/v1/api-webhook-receiver?token=e60d9f54d357417e8aab46848c81c04e21d4b4d2d1fc4d03b4bc420f6af8b067";
 const BIO_NATURE_WEBHOOK_URL =
-  "https://newtracking-sales-sys.vercel.app/api/webhooks/leads/cmqwra13j0003t4mc92b5eobn";
+  process.env.CRM_WEBHOOK_URL ||
+  "https://crm.fonilgroup.com.br/api/webhooks/leads/cmqwra13j0003t4mc92b5eobn";
 
 async function postLead(url: string, payload: Record<string, unknown>) {
   return fetch(url, {
