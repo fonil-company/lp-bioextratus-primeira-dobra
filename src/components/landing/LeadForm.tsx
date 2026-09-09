@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { CheckCircle2, Loader2, LockKeyhole, Send } from "lucide-react";
+import { CheckCircle2, Loader2, LockKeyhole, Send, Sparkles } from "lucide-react";
 import { isValidCNPJ, isValidPhone, maskCNPJ, maskPhone, sendLead, type Lead } from "@/lib/lead";
-import { btnPrimary } from "./ui";
 
 const emptyLead: Lead = {
   nome: "",
@@ -9,8 +8,7 @@ const emptyLead: Lead = {
   cnpj: "",
 };
 
-const fieldClass =
-  "mt-2 min-h-12 w-full rounded-md border border-border bg-background px-4 py-3 text-sm text-title transition-[border-color,box-shadow,background-color] duration-250 placeholder:text-subtle/70 hover:border-primary/45 focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/8 disabled:cursor-not-allowed disabled:opacity-60";
+const fieldClass = "form-input";
 
 type Errors = Partial<Record<keyof Lead, string>>;
 
@@ -28,12 +26,11 @@ export function HeroLeadForm() {
     });
   };
 
-
   function validate() {
     const next: Errors = {};
     if (values.nome.trim().length < 3) next.nome = "Informe seu nome completo.";
-    if (!isValidPhone(values.whatsapp)) next.whatsapp = "Informe um WhatsApp válido com DDD.";
-    if (!isValidCNPJ(values.cnpj)) next.cnpj = "Informe um CNPJ válido.";
+    if (!isValidPhone(values.whatsapp)) next.whatsapp = "Informe um WhatsApp v\u00e1lido com DDD.";
+    if (!isValidCNPJ(values.cnpj)) next.cnpj = "Informe um CNPJ v\u00e1lido.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -52,63 +49,64 @@ export function HeroLeadForm() {
   }
 
   return (
-    <div
-      id="cadastro"
-      className="hero-enter border border-border bg-white p-5 text-left shadow-[0_24px_64px_rgba(17,62,33,0.18)] sm:p-7 [animation-delay:420ms]"
-    >
+    <aside id="cadastro" className="lead-card hero-enter [animation-delay:180ms]">
       {status === "success" ? (
-        <div role="status" className="py-10 text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
-            <CheckCircle2 className="h-7 w-7 text-primary" aria-hidden="true" />
+        <div role="status" className="flex min-h-[430px] flex-col items-center justify-center py-8 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary">
+            <CheckCircle2 className="h-8 w-8 text-cream" aria-hidden="true" />
           </span>
-          <h3 className="mt-5 text-2xl">Cadastro enviado com sucesso!</h3>
-          <p className="mt-3 text-body">A equipe Bio Nature entrará em contato com você.</p>
-          <button
-            type="button"
-            onClick={() => setStatus("idle")}
-            className="mt-6 text-sm font-semibold text-primary underline underline-offset-4"
-          >
+          <p className="mt-6 text-[10px] font-extrabold uppercase tracking-[0.18em] text-primary">
+            Tudo certo
+          </p>
+          <h2 className="mt-2 text-4xl uppercase text-primary-dark">Cadastro enviado!</h2>
+          <p className="mt-3 max-w-xs text-sm leading-relaxed text-body">
+            A equipe Bio Nature entrar&aacute; em contato para apresentar as condi&ccedil;&otilde;es da sua regi&atilde;o.
+          </p>
+          <button type="button" onClick={() => setStatus("idle")} className="mt-6 text-sm font-bold text-primary underline underline-offset-4">
             Enviar outro cadastro
           </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} noValidate className="grid gap-4">
-          <div className="mb-1 border-b border-border pb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
-              Catálogo comercial
+          <div className="border-b border-primary-dark/12 pb-4">
+            <p className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Cat&aacute;logo comercial
             </p>
-            <h3 className="mt-2 text-2xl md:text-3xl">Receba as condições para sua região</h3>
+            <h2 className="form-heading mt-2">Leve Bio Extratus para a sua loja</h2>
+            <p className="mt-2 text-xs leading-relaxed text-body/75">
+              Preencha os dados e receba as condi&ccedil;&otilde;es para sua regi&atilde;o.
+            </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nome" id="nome" error={errors.nome}>
-              <input
-                id="nome"
-                name="nome"
-                autoComplete="name"
-                value={values.nome}
-                onChange={(event) => set("nome", event.target.value)}
-                className={fieldClass}
-                placeholder="Seu nome completo"
-                aria-invalid={!!errors.nome}
-              />
-            </Field>
-            <Field label="Número (WhatsApp)" id="whatsapp" error={errors.whatsapp}>
-              <input
-                id="whatsapp"
-                name="whatsapp"
-                inputMode="tel"
-                autoComplete="tel"
-                value={values.whatsapp}
-                onChange={(event) => set("whatsapp", maskPhone(event.target.value))}
-                className={fieldClass}
-                placeholder="(00) 00000-0000"
-                aria-invalid={!!errors.whatsapp}
-              />
-            </Field>
-          </div>
+          <Field label="Nome completo" id="nome" error={errors.nome}>
+            <input
+              id="nome"
+              name="nome"
+              autoComplete="name"
+              value={values.nome}
+              onChange={(event) => set("nome", event.target.value)}
+              className={fieldClass}
+              placeholder={"Como podemos chamar voc\u00ea?"}
+              aria-invalid={!!errors.nome}
+            />
+          </Field>
 
-          <Field label="CNPJ" id="cnpj" error={errors.cnpj}>
+          <Field label="WhatsApp" id="whatsapp" error={errors.whatsapp}>
+            <input
+              id="whatsapp"
+              name="whatsapp"
+              inputMode="tel"
+              autoComplete="tel"
+              value={values.whatsapp}
+              onChange={(event) => set("whatsapp", maskPhone(event.target.value))}
+              className={fieldClass}
+              placeholder="(00) 00000-0000"
+              aria-invalid={!!errors.whatsapp}
+            />
+          </Field>
+
+          <Field label="CNPJ da empresa" id="cnpj" error={errors.cnpj}>
             <input
               id="cnpj"
               name="cnpj"
@@ -121,32 +119,28 @@ export function HeroLeadForm() {
             />
           </Field>
 
-
-          <button
-            type="submit"
-            disabled={status === "loading"}
-            className={`${btnPrimary} w-full !bg-secondary !text-white hover:!bg-secondary-dark disabled:opacity-70`}
-          >
+          <button type="submit" disabled={status === "loading"} className="form-submit group">
             {status === "loading" ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Send className="h-4 w-4" aria-hidden="true" />
+              <Send className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             )}
-            Solicitar catálogo
+            Solicitar cat&aacute;logo
           </button>
 
-          <p className="flex items-start gap-2 text-[11px] leading-relaxed text-subtle">
+          <p className="flex items-start justify-center gap-2 text-[10px] leading-relaxed text-subtle">
             <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-            Seus dados serão usados somente para este atendimento comercial.
+            Seus dados ser&atilde;o usados somente neste atendimento comercial.
           </p>
+
           {status === "error" && (
-            <p role="alert" className="text-sm text-destructive">
-              Não foi possível enviar agora. Tente novamente em instantes.
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-center text-xs font-semibold text-destructive">
+              N&atilde;o foi poss&iacute;vel enviar agora. Tente novamente em instantes.
             </p>
           )}
         </form>
       )}
-    </div>
+    </aside>
   );
 }
 
@@ -163,11 +157,11 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="text-xs font-bold text-title">
+      <label htmlFor={id} className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-primary-dark">
         {label}
       </label>
       {children}
-      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+      {error && <p className="mt-1.5 text-xs font-semibold text-destructive">{error}</p>}
     </div>
   );
 }
