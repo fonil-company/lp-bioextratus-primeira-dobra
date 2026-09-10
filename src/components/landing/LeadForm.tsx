@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2, LockKeyhole, Send, Sparkles } from "lucide-react";
 import { isValidCNPJ, isValidPhone, maskCNPJ, maskPhone, sendLead, type Lead } from "@/lib/lead";
+import { captureTrackingData } from "@/lib/tracking";
+import { trackLeadEvent } from "@/lib/pixel";
 
-const emptyLead: Lead = {
+const emptyLead: Omit<Lead, "tracking"> = {
   nome: "",
   whatsapp: "",
   cnpj: "",
@@ -13,11 +15,11 @@ const fieldClass = "form-input";
 type Errors = Partial<Record<keyof Lead, string>>;
 
 export function HeroLeadForm() {
-  const [values, setValues] = useState<Lead>(emptyLead);
+  const [values, setValues] = useState<Omit<Lead, "tracking">>(emptyLead);
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-  const set = <K extends keyof Lead>(key: K, value: Lead[K]) => {
+  const set = <K extends keyof Omit<Lead, "tracking">>(key: K, value: Lead[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
     setErrors((current) => {
       const next = { ...current };
@@ -39,10 +41,17 @@ export function HeroLeadForm() {
     event.preventDefault();
     if (!validate()) return;
     setStatus("loading");
-    const result = await sendLead(values);
+    const tracking = captureTrackingData();
+    const result = await sendLead({ ...values, tracking });
     if (result.ok) {
       setStatus("success");
       setValues(emptyLead);
+      trackLeadEvent({
+        content_name: "Cadastro lojista - Bio Extratus",
+        utm_source: tracking.utm_source,
+        utm_medium: tracking.utm_medium,
+        utm_campaign: tracking.utm_campaign,
+      });
     } else {
       setStatus("error");
     }
