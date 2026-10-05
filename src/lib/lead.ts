@@ -36,7 +36,7 @@ export const onlyDigits = (value: string) => value.replace(/\D/g, "");
 
 const BIONATURE_WEBHOOK_URL =
   process.env.BIONATURE_WEBHOOK_URL ||
-  "https://mpajmwwwexxnrsyocppb.supabase.co/functions/v1/api-webhook-receiver?token=e60d9f54d357417e8aab46848c81c04e21d4b4d2d1fc4d03b4bc420f6af8b067";
+  "https://mpajmwwwexxnrsyocppb.supabase.co/functions/v1/api-webhook-receiver?token=b1de52b70c814e91a0e7167437c9e4907f5d7ec9e55342358a70c8664083a1ca";
 const BIO_NATURE_WEBHOOK_URL =
   process.env.CRM_WEBHOOK_URL ||
   "https://crm.fonilgroup.com.br/api/webhooks/leads/cmqwra13j0003t4mc92b5eobn";
