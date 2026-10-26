@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, LockKeyhole, Send, Sparkles } from "lucide-react";
 import { isValidCNPJ, isValidPhone, maskCNPJ, maskPhone, sendLead, type Lead } from "@/lib/lead";
 import { captureTrackingData } from "@/lib/tracking";
@@ -18,6 +18,10 @@ export function HeroLeadForm() {
   const [values, setValues] = useState<Omit<Lead, "tracking">>(emptyLead);
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const submitting = useRef(false);
+  const submissionId = useRef<string | null>(null);
+
+  useEffect(() => { captureTrackingData(); }, []);
 
   const set = <K extends keyof Omit<Lead, "tracking">>(key: K, value: Lead[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -39,7 +43,9 @@ export function HeroLeadForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!validate()) return;
+    if (submitting.current || !validate()) return;
+    submitting.current = true;
+    submissionId.current ??= crypto.randomUUID();
     setStatus("loading");
     const tracking = captureTrackingData();
     const result = await sendLead({ ...values, tracking });
@@ -51,10 +57,12 @@ export function HeroLeadForm() {
         utm_source: tracking.utm_source,
         utm_medium: tracking.utm_medium,
         utm_campaign: tracking.utm_campaign,
-      });
+      }, submissionId.current);
+      submissionId.current = null;
     } else {
       setStatus("error");
     }
+    submitting.current = false;
   }
 
   return (

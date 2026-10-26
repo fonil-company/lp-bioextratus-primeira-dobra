@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { TrackingData } from "@/lib/tracking";
+import { isCampaignKey, type TrackingData } from "@/lib/tracking";
 
 export type Lead = {
   nome: string;
@@ -9,83 +9,31 @@ export type Lead = {
   tracking?: TrackingData;
 };
 
-const trackingSchema = z
-  .object({
-    utm_source: z.string().optional(),
-    utm_medium: z.string().optional(),
-    utm_campaign: z.string().optional(),
-    utm_content: z.string().optional(),
-    utm_term: z.string().optional(),
-    fbclid: z.string().optional(),
-    campaign_id: z.string().optional(),
-    adset_id: z.string().optional(),
-    ad_id: z.string().optional(),
-    fbp: z.string().optional(),
-    landing_url: z.string().optional(),
-  })
-  .optional();
+const trackingSchema = z.record(z.string().optional()).transform((tracking) =>
+  Object.fromEntries(Object.entries(tracking).filter(([key]) =>
+    isCampaignKey(key) || ["event_source_url", "landing_url", "fbc", "fbp"].includes(key)
+  ))
+).optional();
 
 const leadSchema = z.object({
-  nome: z.string().min(3),
-  whatsapp: z.string().min(10),
-  cnpj: z.string().min(14),
+  nome: z.string().trim().min(3),
+  whatsapp: z.string().transform((value) => value.replace(/\D/g, "")).pipe(z.string().regex(/^\d{10,11}$/)),
+  cnpj: z.string().transform((value) => value.replace(/\D/g, "")).pipe(z.string().regex(/^\d{14}$/)),
   tracking: trackingSchema,
 });
 
 export const onlyDigits = (value: string) => value.replace(/\D/g, "");
 
-const BIONATURE_WEBHOOK_URL =
-  process.env.BIONATURE_WEBHOOK_URL ||
-  "https://mpajmwwwexxnrsyocppb.supabase.co/functions/v1/api-webhook-receiver?token=b1de52b70c814e91a0e7167437c9e4907f5d7ec9e55342358a70c8664083a1ca";
-const BIO_NATURE_WEBHOOK_URL =
-  process.env.CRM_WEBHOOK_URL ||
-  "https://crm.fonilgroup.com.br/api/webhooks/leads/cmqwra13j0003t4mc92b5eobn";
-
-async function postLead(url: string, payload: Record<string, unknown>) {
-  return fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
 const submitLeadToCrm = createServerFn({ method: "POST" })
   .validator((input: unknown) => leadSchema.parse(input))
   .handler(async ({ data }) => {
-    const payload = {
-      phone: onlyDigits(data.whatsapp),
-      name: data.nome.trim(),
-      document: onlyDigits(data.cnpj),
-      pipeline_stage: "Qualificado",
-      ...data.tracking,
-    };
-
-    const bionatureRequest = BIONATURE_WEBHOOK_URL
-      ? postLead(BIONATURE_WEBHOOK_URL, payload)
-      : Promise.reject(new Error("BIONATURE_WEBHOOK_URL is not configured."));
-
-    const [bionatureResult, bioNatureResult] = await Promise.allSettled([
-      bionatureRequest,
-      postLead(BIO_NATURE_WEBHOOK_URL, payload),
-    ]);
-
-    const bionatureResponse =
-      bionatureResult.status === "fulfilled" ? bionatureResult.value : undefined;
-    const bioNatureResponse =
-      bioNatureResult.status === "fulfilled" ? bioNatureResult.value : undefined;
-
-    if (!bionatureResponse?.ok) {
-      console.error(
-        `Bionature webhook rejected lead submission${bionatureResponse ? ` with status ${bionatureResponse.status}` : ""}.`,
-      );
-    }
-    if (!bioNatureResponse?.ok) {
-      console.error(
-        `Bio Nature webhook rejected lead submission${bioNatureResponse ? ` with status ${bioNatureResponse.status}` : ""}.`,
-      );
-    }
-
-    return { ok: Boolean(bionatureResponse?.ok || bioNatureResponse?.ok) };
+    const { deliverLead } = await import("./lead-delivery.server");
+    return deliverLead(data, {
+      supabase: process.env.BIONATURE_WEBHOOK_URL ||
+        "https://mpajmwwwexxnrsyocppb.supabase.co/functions/v1/api-webhook-receiver?token=b1de52b70c814e91a0e7167437c9e4907f5d7ec9e55342358a70c8664083a1ca",
+      crm: process.env.CRM_WEBHOOK_URL ||
+        "https://crm.fonilgroup.com.br/api/webhooks/leads/cmqwra13j0003t4mc92b5eobn",
+    });
   });
 
 export async function sendLead(lead: Lead): Promise<{ ok: boolean }> {

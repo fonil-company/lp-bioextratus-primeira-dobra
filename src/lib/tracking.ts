@@ -1,73 +1,72 @@
-export type TrackingData = {
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  utm_content?: string;
-  utm_term?: string;
-  fbclid?: string;
-  campaign_id?: string;
-  adset_id?: string;
-  ad_id?: string;
-  fbp?: string;
-  landing_url?: string;
-};
+﻿export type TrackingData = Record<string, string | undefined>;
 
-const URL_PARAM_KEYS: (keyof TrackingData)[] = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_content",
-  "utm_term",
-  "fbclid",
-  "campaign_id",
-  "adset_id",
-  "ad_id",
-];
-
+const CAMPAIGN_KEYS = new Set([
+  "fbclid", "gclid", "gbraid", "wbraid", "msclkid", "ttclid",
+  "campaign", "campaign_id", "adset_id", "ad_id", "placement",
+]);
 const STORAGE_KEY = "bioextratus_tracking";
+let entryTracking: TrackingData | undefined;
 
-function readFbpCookie(): string | undefined {
-  const match = document.cookie.match(/(?:^|;\s*)_fbp=([^;]+)/);
-  return match?.[1];
+export function isCampaignKey(key: string) {
+  return /^utm_[a-z0-9_]+$/.test(key) || CAMPAIGN_KEYS.has(key);
+}
+
+export function isAttributionValue(key: string, value: unknown): value is string {
+  return typeof value === "string" && Boolean(value.trim()) &&
+    value.trim().toLowerCase() !== key.toLowerCase() &&
+    !/\{[^}]*\}|%7b|\[\[|<[^>]+>/i.test(value);
+}
+
+export function captureCampaign(pageUrl: string): TrackingData {
+  const attribution: TrackingData = {};
+  for (const [key, value] of new URL(pageUrl).searchParams) {
+    if (isCampaignKey(key) && isAttributionValue(key, value)) attribution[key] = value;
+  }
+  return { ...attribution, event_source_url: pageUrl };
+}
+
+function readMetaCookie(name: string): string | undefined {
+  const value = document.cookie.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
+  if (!value) return undefined;
+  try { return decodeURIComponent(value); } catch { return value; }
 }
 
 function readStoredTracking(): TrackingData {
   try {
-    const stored = window.sessionStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as TrackingData) : {};
+    const stored = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) || "{}");
+    return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
   } catch {
     return {};
   }
 }
 
-function persistTracking(data: TrackingData) {
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // sessionStorage indisponível (modo privado, etc.) — segue sem persistir.
-  }
-}
-
-// Captura utms/click ids da URL no primeiro carregamento e mantém no sessionStorage,
-// assim o cadastro final continua com a origem mesmo se o envio ocorrer depois da chegada.
+// Capture once on entry. A subsequent hash/navigation must not replace the source URL.
+// Keep the existing session scope, without merging identifiers from different campaigns.
 export function captureTrackingData(): TrackingData {
   if (typeof window === "undefined") return {};
 
-  const params = new URL(window.location.href).searchParams;
-  const fromUrl: TrackingData = {};
-  for (const key of URL_PARAM_KEYS) {
-    const value = params.get(key);
-    if (value) fromUrl[key] = value;
+  if (!entryTracking) {
+    const current = captureCampaign(window.location.href);
+    const stored = readStoredTracking();
+    const storedUrl = stored.event_source_url || stored.landing_url;
+    let previous: TrackingData = {};
+    try {
+      if (storedUrl && new URL(storedUrl).origin === window.location.origin) {
+        previous = captureCampaign(storedUrl);
+      }
+    } catch { /* Ignore malformed legacy session data. */ }
+    entryTracking = Object.keys(current).some(isCampaignKey) || !previous.event_source_url
+      ? current : previous;
   }
 
-  const stored = readStoredTracking();
-  const merged: TrackingData = { ...stored, ...fromUrl };
-
-  const fbp = readFbpCookie();
-  if (fbp) merged.fbp = fbp;
-
-  merged.landing_url = window.location.href;
-
-  persistTracking(merged);
-  return merged;
+  const tracking: TrackingData = { ...entryTracking, landing_url: entryTracking.event_source_url };
+  const fbc = readMetaCookie("_fbc");
+  const fbp = readMetaCookie("_fbp");
+  if (fbc) tracking.fbc = fbc;
+  if (fbp) tracking.fbp = fbp;
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(tracking));
+  } catch { /* Memory still preserves attribution when storage is unavailable. */ }
+  return tracking;
 }
